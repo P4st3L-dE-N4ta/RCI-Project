@@ -64,12 +64,15 @@ void initNode(char *ip, char *port, int flag) {
     my_node.fd_UDP = -1;
     my_node.n_intr = 0;
 
-    
-    for(int i = 0; i < my_node.CacheSize; i++){
-        if(my_node.receivedObjs != NULL)
-        memset(my_node.receivedObjs[i].objName, '\0', sizeof(my_node.receivedObjs[i].objName));
+    // Se quiser salvar a cache ou memoria local utilizo a flag
+    if(flag != 1){
+        for(int i = 0; i < my_node.CacheSize; i++){
+            if(my_node.receivedObjs != NULL)
+            memset(my_node.receivedObjs[i].objName, '\0', sizeof(my_node.receivedObjs[i].objName));
+        }
+        my_node.n_objs_inCache = 0;
     }
-    my_node.n_objs_inCache = 0;
+    
     
 
     for(int i= 0; i < MAX_N_OBJECTS; i++){
@@ -105,7 +108,7 @@ void initNode(char *ip, char *port, int flag) {
  * -> buffer - buffer que passamos por referencia para guardar
  *             a mensagem que vamos ler
  *******************************************************************/
-void ReadFunction(int fd, char *buffer){
+void ReadFunction(int fd, char *buffer, ssize_t buffer_size){
     ssize_t n;
     char local = '\0';
     int char_counter = 0;
@@ -116,8 +119,17 @@ void ReadFunction(int fd, char *buffer){
             perror("Error in read in ReadFuncion - MESSAGE\n");
             exit(EXIT_FAILURE);
         }
+        // Ensure we don't write outside buffer bounds
+        if (char_counter >= buffer_size - 1) {
+            fprintf(stderr, "\n------- ERROR ------\n");
+            fprintf(stderr, "Buffer is full. Exiting function immediately.\n");
+            fprintf(stderr, "--------------------\n");
+            return;
+        }
+
         buffer[char_counter++] = local;
     }
+
 
 }
 
@@ -157,14 +169,11 @@ void CloseAll(fd_set readfds){
         close(my_node.myself.fd);
     }
 
-    // Salvar os objetos inherent
+    // Salvar os objetos inherent e cache
     flag = 1;
     initNode(my_node.myself.ip, my_node.myself.tcp_port, flag);
 
-    if(my_node.receivedObjs != NULL){
-        free(my_node.receivedObjs);
-        my_node.receivedObjs = NULL;
-    }
+    
         
     
 

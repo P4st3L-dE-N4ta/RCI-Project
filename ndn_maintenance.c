@@ -284,6 +284,14 @@ int Join(char *regIP, char *regUDP, char*netID){
     /*FD_SET(fd_UDP, &readfds);
     nfds = MAX(nfds, fd_UDP);*/
 
+    struct timeval timeout;
+    timeout.tv_sec = 5;   // 5 seconds
+    timeout.tv_usec = 0;  // 0 microseconds
+    if (setsockopt(fd_UDP, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)) < 0) {
+        perror("Error setting timeout");
+        exit(EXIT_FAILURE);
+    }
+
 
     memset(&hints, 0, sizeof hints);
     hints.ai_family = AF_INET; // IPv4
@@ -632,7 +640,7 @@ int missingEXTR(){
  * - IP e TCP de todos os vizinhos internos que tiver
  ********************************************************************/
 void ShowTopology() {
-
+    printf("\n------------------------ Show Topology ------------------------\n");
     printf("My Node:\n");
     printf("  IP: %s\n", my_node.myself.ip);
     printf("  TCP Port: %s\n", my_node.myself.tcp_port);
@@ -649,6 +657,7 @@ void ShowTopology() {
     for (int i = 0; i < my_node.n_intr; i++) {
         printf("  [%d] IP: %s, TCP Port: %s\n", i + 1, my_node.vz_intr[i].ip, my_node.vz_intr[i].tcp_port);
     }
+    printf("---------------------------------------------------------------\n");
 
     return;
 }

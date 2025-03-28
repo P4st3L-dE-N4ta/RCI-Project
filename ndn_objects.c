@@ -21,7 +21,10 @@
  */
 void createObject(char *name){
     int position = my_node.n_inherentObjs;
-
+    if(strlen(name)>=101){
+        fprintf(stderr, "Name is too big. Object Creation failed.\n");
+        return;
+    }
     strcpy(my_node.inherentObjs[position].objName, name);
     my_node.n_inherentObjs++;
 
@@ -273,6 +276,14 @@ void processOBJECT_received(char *name){
         }
     }
 
+    // Object was already found 
+    if(obj_position == -1){
+        printf("\n---------------------------\n");
+        printf("Object %s was already received.\n", name);
+        printf("---------------------------\n");
+        return;
+    }
+
     // Para as sockets em estado de resposta envia mensagem de objeto
     while(my_node.intTab.objPending[obj_position].socketInfo[interface].socket_id != -1){
         if(my_node.intTab.objPending[obj_position].socketInfo[interface].socketState == ANSWER){
@@ -291,6 +302,7 @@ void processOBJECT_received(char *name){
         my_node.n_objs_inCache++;
         accessCache(name);
     }
+    printf("--------------------------------------------\n");
     showInterestTable();
     
 }
@@ -347,6 +359,7 @@ void processNOOBJECT_received(int fd, char *name){
         deleteEntry(obj_position);
 
     }
+    printf("--------------------------------------------\n");
     showInterestTable();
 
     return;
@@ -557,7 +570,7 @@ void showInterestTable(){
     char *answer = "resposta";
     char *state = NULL;
 
-
+    printf("\n------------------------ Interest Table ------------------------\n");
     printf("Lista de pedidos pendentes:\n");
     if(my_node.intTab.n_objects_iwant == 0){
         printf("No objects requested\n");
@@ -579,6 +592,7 @@ void showInterestTable(){
             printf("\n");
         }
     }
+    printf("---------------------------------------------------------------\n");
 }
 
 

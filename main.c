@@ -30,6 +30,7 @@ int main (int argc, char *argv[]) {
     char reg_port[6] = DEFAULT_regUDP;
 
     /* Confirmation of correct usage of app invocation*/
+    printf("\n---------------------------\n");
     if(argc > 6){
         fprintf(stdout, "Too many arguments!\n");
         fprintf(stdout, "Aplication Invocation is made with the following structure:\n ./ndn cache IP TCP regIp regUDP\n");
@@ -74,7 +75,7 @@ int main (int argc, char *argv[]) {
     else
         fprintf(stdout, "Server UDP Port: %s\n", reg_port);
 
-
+    printf("---------------------------\n");
     /* socket para escuta */
     //int my_fd = -1;
     /* socket geral de uso */
@@ -92,9 +93,6 @@ int main (int argc, char *argv[]) {
     my_node.receivedObjs = malloc (my_node.CacheSize * sizeof(Obj));
     initNode(source_ip, source_port, 0);
     
-
-
-
 
     /* Variaveis para o selec */
     int nfds = 0, choice_maker = -1;
@@ -133,7 +131,7 @@ int main (int argc, char *argv[]) {
         if(state == UNREGISTERED){
             CloseAll(readfds);
             state = WAS_CLOSED;
-            printf("Now you can exit (x) if you wish\n");
+            printf("\nNow you can exit (x) if you wish\n");
             continue;
         }
 
@@ -239,15 +237,53 @@ int main (int argc, char *argv[]) {
                     } else if(strcmp(command, "x") == 0){ // Chamada a exit (x) 
                         // Se n tiver ainda feito leave e tiver sozinho
                         if(my_node.myself.fd != -1){
-                            
+                            printf("\n---------------------------\n");
                             printf("You have not executed leave command, so it will be now executed before exiting\n");
                             // Leave command 
-                            if(my_node.fd_UDP != -1)
+                            if(my_node.fd_UDP != -1){
+                                char buffer_exit[64];
+                                memset(buffer_exit, 0, sizeof(buffer_exit));
+
                                 UNREG_MESSAGE_SEND(my_node.fd_UDP, netID, addrUDP, addrlenUDP);
-                            else 
+                                printf("Waiting for UDP to answer\n");
+                                n = recvfrom(my_node.fd_UDP, buffer_exit, sizeof(buffer_exit), 0, (struct sockaddr*)&addrUDP, &addrlenUDP);
+                                if(n == -1){
+                                    if(errno == EWOULDBLOCK || errno == EAGAIN){
+                                        fprintf(stderr, "\n------ ERROR -----\n");
+                                        fprintf(stderr, "No data received within timeout period. Assuming socket is inactive.\n");
+                                        fprintf(stderr, "------------------\n");
+                                        my_node.fd_UDP = -1;
+                                        state = UNREGISTERED;
+                                        continue;
+                                    }
+                                } else {
+
+                                    memset(messageType, 0, sizeof(messageType));
+                                    sscanf(buffer_exit, "%s", messageType);
+                                    if(strcmp(messageType, "OKUNREG") == 0) {
+                                        /* Receives OKUNREG */
+                                        write(1, "received: ", 10);
+                                        write(1, messageType, strlen(messageType));
+                                        write(1, "\n", 1);
+                                
+                                        if(strcmp(messageType, "OKUNREG") == 0){
+                                            printf("Node successfully unregistered\n");
+                                            state = UNREGISTERED;
+                                        } else { 
+                                            perror("Node not unregistered sucessfully\n");
+                                            exit(EXIT_FAILURE);
+                                        }
+                                    }
+                                }
+                                printf("---------------------------\n");
+                            } else 
                                 state = UNREGISTERED;
 
                         } else {
+                            if(my_node.receivedObjs != NULL){
+                                free(my_node.receivedObjs);
+                                my_node.receivedObjs = NULL;
+                            }
                             initNode(my_node.myself.ip, my_node.myself.tcp_port, 0);              
                             exit(EXIT_SUCCESS);
                         }
@@ -258,6 +294,7 @@ int main (int argc, char *argv[]) {
                 } else {
                     fprintf(stderr, "Zero arguments\n");
                 }
+                printf("\n");
             }
 
         }
@@ -277,26 +314,25 @@ int main (int argc, char *argv[]) {
                     exit(EXIT_FAILURE);
                 }
                 
-                // O n_intr e aumentado no update da struct
-                my_node.vz_intr[my_node.n_intr].fd = new_fd;
-                
                 
                 memset(buffer, 0, sizeof(buffer));
                 memset(messageType, 0, sizeof(messageType));
                 memset(messageIP, 0, sizeof(messageIP));
                 memset(messagePort, 0, sizeof(messagePort));
 
-                ReadFunction(my_node.vz_intr[my_node.n_intr].fd, buffer);
+                ReadFunction(new_fd, buffer, sizeof(buffer));
 
                 sscanf(buffer, "%s %s %s", messageType, messageIP, messagePort); // Needed to update it after the vz_extr
                 if(strcmp(messageType, "ENTRY") != 0){
                     fprintf(stderr, "\n------------- ERROR -------------\n");
                     fprintf(stderr, "This should not happen. Listen socket only receives ENTRY.\n");
                     fprintf(stderr, "We decided to reset the select cycle in this case.\n");
-                    fprintf(stderr, "------------- ERR----------------\n");
+                    fprintf(stderr, "---------------------------------\n");
                     continue;
                 }
-                    
+                printf("\n*****************************************\n");
+                // O n_intr e aumentado no update da struct
+                my_node.vz_intr[my_node.n_intr].fd = new_fd;
 
                 // Da update dos vizinhos internos 
                 updateNodeStruct(state, buffer);
@@ -316,6 +352,8 @@ int main (int argc, char *argv[]) {
                     // Procedimento normal, escreve safe e ta feito
                     SAFE_MESSAGE_SEND(new_fd);
                 }
+
+                printf("*****************************************\n\n");
             }
 
         }
@@ -340,10 +378,10 @@ int main (int argc, char *argv[]) {
                 memset(messageIP, 0, sizeof(messageIP));
                 memset(messagePort, 0, sizeof(messagePort));
 
-                ReadFunction(my_node.vz_extr.fd, buffer);
+                ReadFunction(my_node.vz_extr.fd, buffer, sizeof(buffer));
                 //fprintf(stdout, "delulu %s\n", buffer);
                 sscanf(buffer, "%s %s %s", messageType, messageIP, messagePort);
-                
+                printf("\n*****************************************\n");
                 if(strcmp(messageType, "SAFE") == 0){
                     updateNodeStruct(state, buffer);
                     write(1, "received: ", 10);
@@ -352,7 +390,6 @@ int main (int argc, char *argv[]) {
                     updateNodeStruct(state, buffer);
                     write(1, "received: ", 10);
                     write(1, buffer, strlen(buffer));
-
                     SAFE_MESSAGE_SEND(my_node.vz_extr.fd);
                 } else if(strcmp(messageType, "INTEREST") == 0) {
                     write(1, "received: ", 10);
@@ -370,6 +407,7 @@ int main (int argc, char *argv[]) {
                     perror("Error, neither safe or entry message was received\n");
                     exit(EXIT_FAILURE);
                 }
+                printf("*****************************************\n\n");
             }
         }
         
@@ -401,9 +439,10 @@ int main (int argc, char *argv[]) {
                     memset(messageIP, 0, sizeof(messageIP));
                     memset(messagePort, 0, sizeof(messagePort));
                     
-                    ReadFunction(my_node.vz_intr[i].fd, buffer);
+                    ReadFunction(my_node.vz_intr[i].fd, buffer, sizeof(buffer));
                     sscanf(buffer, "%s %s %s", messageType, messageIP, messagePort);
 
+                    printf("\n*****************************************\n");
                     if(strcmp(messageType, "SAFE") == 0){
                         // Da update dos ao no de salvaguarda 
                         updateNodeStruct(state, buffer);
@@ -423,7 +462,7 @@ int main (int argc, char *argv[]) {
                         write(1, buffer, strlen(buffer));
                         processNOOBJECT_received(my_node.vz_intr[i].fd, messageIP);
                     }
-                    
+                    printf("*****************************************\n\n");
                 }
             }
         }
@@ -443,8 +482,16 @@ int main (int argc, char *argv[]) {
 
                 n = recvfrom(my_node.fd_UDP, buffer_list, sizeof(buffer_list), 0, (struct sockaddr*)&addrUDP, &addrlenUDP);
                 if(n == -1){
-                    perror("Error Sending UDP Message\n");
-                    exit(EXIT_FAILURE);
+                    if(errno == EWOULDBLOCK || errno == EAGAIN){
+                        fprintf(stderr, "\n------ ERROR -----\n");
+                        fprintf(stderr, "No data received within timeout period. Assuming socket is inactive.\n");
+                        fprintf(stderr, "------------------\n");
+                        my_node.fd_UDP = -1;
+                        continue;
+                    } else {
+                        perror("Error Sending UDP Message\n");
+                        exit(EXIT_FAILURE);
+                    }
                 }
                 sscanf(buffer_list, "%s %s", messageType, messagePort);
 
@@ -453,7 +500,7 @@ int main (int argc, char *argv[]) {
                 printf("------------------------- \n");*/
 
 
-
+                printf("\n---------------------------\n");
                 if(strcmp(messageType, "NODESLIST") == 0){
 
                     strcpy(netID, messagePort);
@@ -524,7 +571,7 @@ int main (int argc, char *argv[]) {
                     fprintf(stderr, "Message unknown\n");
                     exit(EXIT_FAILURE);
                 }
-
+                printf("---------------------------\n");
                 
             }
         }

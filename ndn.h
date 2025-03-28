@@ -167,7 +167,7 @@ void SAFE_MESSAGE_SEND(int fd);
 void REG_MESSAGE_SEND(int fd, char *netID, struct sockaddr_in addr, socklen_t addrlen);
 void UNREG_MESSAGE_SEND(int fd, char *netID, struct sockaddr_in addr, socklen_t addrlen);
 
-void ReadFunction(int fd, char *buffer);
+void ReadFunction(int fd, char *buffer, ssize_t buffer_size);
 int LeaveDetected(fd_set readfds, char *choice, int position);
 
 int missingEXTR();
