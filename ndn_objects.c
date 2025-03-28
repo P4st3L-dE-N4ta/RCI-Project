@@ -215,7 +215,7 @@ void retrieveObject(char *targetName){
     int flag = -1;
     int obj = my_node.intTab.n_objects_iwant;
     
-    // verifica se o objeto ja se encontra no objeto
+    // verifica se o objeto ja se encontra na memoria local do objeto
     for(int i = 0; i < my_node.n_inherentObjs; i++){
         if(strcmp(my_node.inherentObjs[i].objName, targetName) == 0){
             flag = i;
@@ -239,7 +239,7 @@ void retrieveObject(char *targetName){
     // So se nao encontrar o objeto e que ele faz retrieve
     strcpy(my_node.intTab.objPending[obj].objectName, targetName);
     
-
+    /* Envia interest a todos as interfaces */
     for(int i = 0; i < my_node.n_intr; i++){
         if(my_node.vz_intr[i].fd != -1){
             INTEREST_SEND_MESSAGE(my_node.vz_intr[i].fd, targetName);
@@ -319,7 +319,7 @@ void processNOOBJECT_received(int fd, char *name){
         }
     }
     if(interface == MAX_INTR_SIZE){
-        printf("Como já recebi objeto, não faço nada com NOOBJECT\n");
+        printf("Como já recebi objeto %s, não faço nada com NOOBJECT\n", my_node.intTab.objPending[obj_position].objectName);
         return;
     }
     my_node.intTab.objPending[obj_position].socketInfo[interface].socketState = CLOSED;
@@ -362,19 +362,28 @@ void deleteEntry(int obj_position){
     int counter = obj_position;
     int flag = -1;
 
-    while(counter + 1 < n_objs){
+    // Enquanto nao chegar ao fim 
+    for(counter = obj_position; counter + 1 < n_objs; counter ++){
         flag = 0;
+        // Copia o nome da entrada debaixo
         strcpy(my_node.intTab.objPending[counter].objectName, my_node.intTab.objPending[counter+1].objectName);
-        while(my_node.intTab.objPending[counter].socketInfo[flag+1].socket_id != -1){
+        /*while(my_node.intTab.objPending[counter].socketInfo[flag+1].socket_id != -1){
             my_node.intTab.objPending[counter].socketInfo[flag].socketState = my_node.intTab.objPending[counter].socketInfo[flag+1].socketState;
             my_node.intTab.objPending[counter].socketInfo[flag].socket_id = my_node.intTab.objPending[counter].socketInfo[flag+1].socket_id;
             flag++;
+        }*/
+        // Copia as informacoes do socket da entrada debaixo para o de cima
+        for(flag = 0; my_node.intTab.objPending[counter+1].socketInfo[flag].socket_id != -1; flag++){
+            my_node.intTab.objPending[counter].socketInfo[flag].socket_id = my_node.intTab.objPending[counter+1].socketInfo[flag].socket_id;
+            my_node.intTab.objPending[counter].socketInfo[flag].socketState = my_node.intTab.objPending[counter+1].socketInfo[flag].socketState;
         }
-        counter++;
+        
     }
-    // Object was the only one in the table
+    // Se flag == -1 Object was the only one in the table if not, counter esta na ultima posicao
+    // Apaga objeto
     memset(my_node.intTab.objPending[counter].objectName, '\0', sizeof(my_node.intTab.objPending[counter].objectName));
     flag = 0;
+    // Reset ao socket info
     while(my_node.intTab.objPending[counter].socketInfo[flag].socket_id != -1){
         my_node.intTab.objPending[counter].socketInfo[flag].socketState = NUN;
         my_node.intTab.objPending[counter].socketInfo[flag].socket_id = -1;

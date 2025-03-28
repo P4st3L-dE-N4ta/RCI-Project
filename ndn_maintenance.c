@@ -113,6 +113,10 @@ void updateNodeStruct (State state, char *buffer){
     } else if(strcmp(message_type, "SAFE") == 0) {
         strcpy(my_node.vz_safe.ip, arg1);
         strcpy(my_node.vz_safe.tcp_port, arg2);
+    } else {
+        fprintf(stderr, "\n------------- ERROR -------------\n");
+        fprintf(stderr, "Unknown message sent to updateNodeStruct()\n");
+        fprintf(stderr, "---------------------------------\n");
     }
 
 }
@@ -513,7 +517,7 @@ void missingINTR(int position){
  **********************************************************************************************************/
 int missingEXTR(){
 
-    int new_fd;
+    //int new_fd;
     int rand = -1;
 
     // Se encontrar o target na lista de vz_intr, elimina-o e reordena a lista
@@ -533,7 +537,8 @@ int missingEXTR(){
         if(my_node.n_intr != 0){
             printf("I chose %s %s as my external node\n", my_node.vz_intr[rand].ip, my_node.vz_intr[rand].tcp_port);
             // Will choose it's external from internal
-            new_fd = DirectJoin(my_node.vz_intr[rand].ip, my_node.vz_intr[rand].tcp_port);
+            //new_fd = DirectJoin(my_node.vz_intr[rand].ip, my_node.vz_intr[rand].tcp_port);
+            ENTRY_MESSAGE_SEND(my_node.vz_intr[rand].fd, my_node.vz_intr[rand].ip,my_node.vz_intr[rand].tcp_port);
 
             // Send Message of SAFE 
             for(int i = 0; i < my_node.n_intr; i++){
@@ -564,8 +569,8 @@ int missingEXTR(){
             }
         }
         printf("I chose %s %s as my external node (my safe node)\n", my_node.vz_safe.ip, my_node.vz_safe.tcp_port);
-        new_fd = DirectJoin(my_node.vz_safe.ip, my_node.vz_safe.tcp_port);
-
+        //new_fd = DirectJoin(my_node.vz_safe.ip, my_node.vz_safe.tcp_port);
+        ENTRY_MESSAGE_SEND(my_node.vz_safe.fd, my_node.vz_safe.ip, my_node.vz_safe.tcp_port);
 
         if(my_node.n_intr != 0){
             for(int i = 0; i < my_node.n_intr; i++){
@@ -575,7 +580,7 @@ int missingEXTR(){
 
     }
 
-    return new_fd;
+    return  1;
 }
 
 
@@ -595,11 +600,14 @@ int missingEXTR(){
     // Vizinho externo saiu da rede 
     if(strcmp(choice, "EXTR") == 0){
         FD_CLR(my_node.vz_extr.fd, &readfds);
+        printf("EXTR Node missing that is also son\n");
         new_fd = missingEXTR();
     } else if(strcmp(choice, "INTR") == 0){ // Vizinho interno saiu da rede 
         // Pode ocorrer de ele detetar primeiro o interno do q o externo
         if(strcmp(my_node.vz_extr.ip, my_node.vz_intr[position].ip) == 0 && strcmp(my_node.vz_extr.tcp_port, my_node.vz_intr[position].tcp_port) == 0){
-            new_fd = LeaveDetected(readfds, "EXTR", position);
+            FD_CLR(my_node.vz_extr.fd, &readfds);
+            printf("EXTR Node missing that is also son\n");
+            new_fd = missingEXTR();
         } else {
             FD_CLR(my_node.vz_intr[position].fd, &readfds);
             printf("INTR Node has left\n");

@@ -200,7 +200,7 @@ int main (int argc, char *argv[]) {
                         new_fd = DirectJoin(arg1, arg2);
                         state = NORMAL;
                     }else{
-                        fprintf(stderr, "There is no such command\n");
+                        fprintf(stderr, "Unknown command\n");
                     }
 
                 } else if(n_command_args == 2){ 
@@ -208,37 +208,27 @@ int main (int argc, char *argv[]) {
                     if(strcmp(command, "j") == 0){
                         my_node.fd_UDP = Join(reg_ip, reg_port, arg1);
                         state = NORMAL;
-                    }
-                
-                    /* Chamada a create (c) name */
-                    if(strcmp(command, "c") == 0){
+                    } else if(strcmp(command, "c") == 0){ // Chamada a create (c) name 
                         createObject(arg1);
-                    }
-                    /* Chamada a delete (dl) name */
-                    if(strcmp(command, "d") == 0){
+                    } else if(strcmp(command, "dl") == 0){ // Chamada a delete (dl) name
                         deleteObject(arg1);
-                    }
-                    /* Chamada a retrieve (r) name */
-                    if(strcmp(command, "r") == 0){
+                    } else if(strcmp(command, "r") == 0){ // Chamada a retrieve (r) name 
                         retrieveObject(arg1);
+                    } else {
+                        fprintf(stderr, "Unknown command\n");
                     }
 
                 } else if(n_command_args == 1) {
                     // Chamada  a  show topology (st)
                     if(strcmp(command, "st") == 0){
                         ShowTopology(my_node);
-                    }
-                    /* Chamada a  show names (sn) */
-                    if(strcmp(command, "sn") == 0)
+                    }else if(strcmp(command, "sn") == 0){ // Chamada a  show names (sn) 
                         showNames();
-                    /* Chamada a show cache (sc) */
-                    if(strcmp(command, "sc") == 0)
+                    } else if(strcmp(command, "sc") == 0) // Chamada a show cache (sc) */
                         showCache();
-                    /* Chamada a show interesttable (si) */
-                    if(strcmp(command, "si") == 0)
+                    else if(strcmp(command, "si") == 0) // Chamada a show interesttable (si) 
                         showInterestTable();
-                    // Chamada a leave (l)
-                    if(strcmp(command, "l") == 0){
+                    else if(strcmp(command, "l") == 0){ // Chamada a leave (l)
                         //TODO: Deixar c que eu n consiga dar dj ao no que foi fechado
                         if(my_node.fd_UDP != -1){
                             UNREG_MESSAGE_SEND(my_node.fd_UDP, netID, addrUDP, addrlenUDP);
@@ -246,10 +236,7 @@ int main (int argc, char *argv[]) {
                             state = UNREGISTERED;
                         }
                         
-                    }
-
-                    // Chamada a exit (x) 
-                    if(strcmp(command, "x") == 0){
+                    } else if(strcmp(command, "x") == 0){ // Chamada a exit (x) 
                         // Se n tiver ainda feito leave e tiver sozinho
                         if(my_node.myself.fd != -1){
                             
@@ -265,10 +252,11 @@ int main (int argc, char *argv[]) {
                             exit(EXIT_SUCCESS);
                         }
                         
+                    } else {
+                        fprintf(stderr, "Unknown command\n");
                     }
                 } else {
-                    perror("Zero arguments");
-                    exit(EXIT_FAILURE);
+                    fprintf(stderr, "Zero arguments\n");
                 }
             }
 
@@ -301,8 +289,14 @@ int main (int argc, char *argv[]) {
                 ReadFunction(my_node.vz_intr[my_node.n_intr].fd, buffer);
 
                 sscanf(buffer, "%s %s %s", messageType, messageIP, messagePort); // Needed to update it after the vz_extr
-                if(strcmp(messageType, "ENTRY") != 0)
-                    fprintf(stderr, "This should not happen\n");
+                if(strcmp(messageType, "ENTRY") != 0){
+                    fprintf(stderr, "\n------------- ERROR -------------\n");
+                    fprintf(stderr, "This should not happen. Listen socket only receives ENTRY.\n");
+                    fprintf(stderr, "We decided to reset the select cycle in this case.\n");
+                    fprintf(stderr, "------------- ERR----------------\n");
+                    continue;
+                }
+                    
 
                 // Da update dos vizinhos internos 
                 updateNodeStruct(state, buffer);
@@ -333,7 +327,6 @@ int main (int argc, char *argv[]) {
 
                 // Verifica se o socket do vz extr foi fechado
                 if(recv(my_node.vz_extr.fd, buffer, sizeof(buffer), MSG_PEEK) == 0){
-                    printf("EXTR Node has left\n");
                     new_fd = LeaveDetected(readfds, "EXTR", -1);
                     continue;
                 } else if(recv(my_node.vz_extr.fd, buffer, sizeof(buffer), MSG_PEEK) == -1 && errno == ECONNRESET){

@@ -113,7 +113,7 @@ void ReadFunction(int fd, char *buffer){
     while(local != '\n'){
         n = read(fd, &local, sizeof(local));
         if(n == -1){
-            perror("Error in read 341 - MESSAGE\n");
+            perror("Error in read in ReadFuncion - MESSAGE\n");
             exit(EXIT_FAILURE);
         }
         buffer[char_counter++] = local;
