@@ -36,8 +36,12 @@
  *  -> intr - /0
  *  -> n_intr = 0
  *  -> fd's = -1
+ *  -> Resets Interest Table
+ *  -> Deletes local memory (savable)
+ *  -> Deletes cache (savable)
  * 
- * Input: Ip and TCP Port of the created node 
+ * Input: Ip and TCP Port of the created node and flag to decide to save 
+ *        something or not.
  ******************************************************************************/
 void initNode(char *ip, char *port, int flag) {
 
@@ -172,10 +176,6 @@ void CloseAll(fd_set readfds){
     // Salvar os objetos inherent e cache
     flag = 1;
     initNode(my_node.myself.ip, my_node.myself.tcp_port, flag);
-
-    
-        
-    
 
     return;
 }

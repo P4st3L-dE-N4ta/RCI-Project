@@ -30,8 +30,6 @@
  * -listen
  * 
  * Inputs:
- * -> hints - structure that contains the characteristics of the socket to be created
- * -> res - structure that saves the information of the getaddrinfo searches
  * -> sourcePort - Port necessario para tirarmos as informacoes de nos proprios com
  *                 o getaddrinfo com IP = NULL
  *************************************************************************************/
@@ -182,15 +180,11 @@ void SAFE_MESSAGE_SEND(int fd) {
  * 
  * Creates a new socket to write in. Gets the target node address info 
  * and finally it connects to it. After connecting, it also sends an ENTRY Message
- * and updates the node structure and saves the file descriptor of the 
- * target node in its vizinho externo
+ * and saves the file descriptor of the target node in its vizinho externo
  * 
  * Inputs:
- * -> readfds - file descriptors cluster to be monitored by select
  * -> connectIP - IP of the target Node
  * -> connectPort - Port of the target Node
- * -> hints - structure that contains the characteristics of the socket to be created
- * -> res - structure that saves the information of the getaddrinfo searches
  * 
  **************************************************************************************************************/
 int DirectJoin(char *connectIP, char *connectPort){
@@ -262,7 +256,7 @@ int DirectJoin(char *connectIP, char *connectPort){
  * Inputs:
  * -> regIP - IP do servidor
  * -> regUDP - UDP servidor
- * -> readfds - file descriptors cluster to be monitored by select
+ * -> netID - identifier of the network
  *******************************************************************************/
 int Join(char *regIP, char *regUDP, char*netID){
     int fd_UDP, errcode;
@@ -284,8 +278,9 @@ int Join(char *regIP, char *regUDP, char*netID){
     /*FD_SET(fd_UDP, &readfds);
     nfds = MAX(nfds, fd_UDP);*/
 
+    // Built in timeout if UDP stops responding
     struct timeval timeout;
-    timeout.tv_sec = 5;   // 5 seconds
+    timeout.tv_sec = 3;   // 3 seconds
     timeout.tv_usec = 0;  // 0 microseconds
     if (setsockopt(fd_UDP, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)) < 0) {
         perror("Error setting timeout");
@@ -518,7 +513,7 @@ void missingINTR(int position){
  * acontecer) e se encontrar elimina o no da lista de vizinhos internos. Assim liga-se ao vizinho 
  * de salvaguarda e envia uma mensagem de SAFE aos seus vizinhos internos.
  * 
- * Return value: int fd - file descriptor da conexao feita por dj
+ * Return value: 1
  * 
  * Inputs: None
  * 
@@ -545,7 +540,6 @@ int missingEXTR(){
         if(my_node.n_intr != 0){
             printf("I chose %s %s as my external node\n", my_node.vz_intr[rand].ip, my_node.vz_intr[rand].tcp_port);
             // Will choose it's external from internal
-            //new_fd = DirectJoin(my_node.vz_intr[rand].ip, my_node.vz_intr[rand].tcp_port);
             ENTRY_MESSAGE_SEND(my_node.vz_intr[rand].fd, my_node.vz_intr[rand].ip,my_node.vz_intr[rand].tcp_port);
 
             // Send Message of SAFE 
@@ -577,9 +571,9 @@ int missingEXTR(){
             }
         }
         printf("I chose %s %s as my external node (my safe node)\n", my_node.vz_safe.ip, my_node.vz_safe.tcp_port);
-        //new_fd = DirectJoin(my_node.vz_safe.ip, my_node.vz_safe.tcp_port);
         ENTRY_MESSAGE_SEND(my_node.vz_safe.fd, my_node.vz_safe.ip, my_node.vz_safe.tcp_port);
 
+        // Envia mensagem de salvaguarda para os filhos
         if(my_node.n_intr != 0){
             for(int i = 0; i < my_node.n_intr; i++){
                 SAFE_MESSAGE_SEND(my_node.vz_intr[i].fd);
@@ -600,7 +594,9 @@ int missingEXTR(){
  * what's left of the network.
  * 
  * Inputs: 
- * -> reads 
+ * -> readfds - Conjunto de file descriptors que o selec monitoriza
+ * -> choice - Variable to see if an EXTR node left or an INTR node left
+ * -> postion - Position of the son in the vector of sons
  *********************************************************************************/
  int LeaveDetected(fd_set readfds, char *choice, int position){
     int new_fd = -1;

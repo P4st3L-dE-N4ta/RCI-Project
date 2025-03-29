@@ -151,9 +151,15 @@ int CreateListenSocket(char *sourcePort);
 
 int DirectJoin(char *connectIP, char *connectPort);
 int Join(char *regIP, char *regUDP, char*netID);
-void ShowTopology();
+
 void createObject(char *name);
 void deleteObject(char *name);
+void retrieveObject(char *targetName);
+
+void ShowTopology();
+void showInterestTable();
+void showNames();
+void showCache();
 
 
 /*************************************************************************************
@@ -180,16 +186,14 @@ void missingINTR(int position);
  * - Funcoes relacionadas a procura de objetos
  *************************************************************************************/
 
- void retrieveObject(char *targetName);
  void processINTEREST_received(int fd, char *targetName);
  void processOBJECT_received(char *name);
  void processNOOBJECT_received(int fd, char *name);
+ 
  void INTEREST_SEND_MESSAGE(int fd, char *name);
  void OBJECT_SEND_MESSAGE(int fd, char *name);
  void NOOBJECT_SEND_MESSAGE(int fd, char *name);
- void showInterestTable();
- void showNames();
- void showCache();
+
  void deleteEntry(int obj_position);
  void accessCache(const char *object);
 

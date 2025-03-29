@@ -16,9 +16,14 @@
 
 
 
-/**
+/*****************************************************
+ * createObject()
  * 
- */
+ * Creates an object in the local memory of the node. 
+ * 
+ * Inputs:
+ * -> name - name of the object
+ *******************************************************/
 void createObject(char *name){
     int position = my_node.n_inherentObjs;
     if(strlen(name)>=101){
@@ -33,9 +38,14 @@ void createObject(char *name){
 
 
 
-/**
+/****************************************************************************
+ * deleteObject()
  * 
- */
+ * Deletes an object from local memory and cache (deactived). 
+ * 
+ * Inputs: 
+ * -> name - object's name
+ *************************************************************************/
 void deleteObject(char *name){
     int flag = 0;
     //char *temp;
@@ -59,6 +69,8 @@ void deleteObject(char *name){
         
     } 
     flag = 0;
+
+    /* Removed because teacher said it isnt supposed to
     // Delete from cache object vector 
     for(int i = 0; i < my_node.n_objs_inCache; i++){
         if(strcmp(my_node.receivedObjs[i].objName, name) == 0){
@@ -78,16 +90,28 @@ void deleteObject(char *name){
         printf("Object not found in node cache.\n");
         
     } 
-    flag = 0;
+    flag = 0;*/
 
     return;
 }
 
 
 
-/**
+/**************************************************************************
+ * processINTEREST_received()
  * 
- */
+ * Executes a sequential code full of if statements to conclude the 
+ * correct procedure. 
+ * 
+ * Checks if object is in local node's memory. 
+ * Checks if object is in node's cache.
+ * Scenario where object isnt in neither interest table or local memory and cache
+ * Scenario where it is in interest table but not in local memory and cache
+ * 
+ * Inputs: 
+ * -> fd - file descpritor of the interface that received INTEREST message
+ * -> targetname - object's name
+ ******************************************************************************/
 void processINTEREST_received(int fd, char *targetName){
     int flag = -1;
     int position_inherentObj, position_intTabObj, position_cacheObj;
@@ -154,9 +178,12 @@ void processINTEREST_received(int fd, char *targetName){
                     fprintf(stderr, "Limite máximo de vizinhos alcançado");
                     exit(EXIT_FAILURE);
                 }
+                // coloca socket encontrado em estado de resposta 
                 my_node.intTab.objPending[obj].socketInfo[interface].socket_id = fd;
                 my_node.intTab.objPending[obj].socketInfo[interface].socketState = ANSWER;
                 flag = -1;
+
+                // Envia mensagem de INTEREST a todos as interfaces do no excepto a que recebeu INTEREST
                 for(int i = 0; i < my_node.n_intr; i++){
                     if(my_node.vz_intr[i].fd != -1){
                         if(my_node.vz_intr[i].fd != fd){
@@ -176,6 +203,8 @@ void processINTEREST_received(int fd, char *targetName){
         } else { // Objeto nao esta no no mas esta na tabela
             int obj = 0;
             int interface = 0;
+            
+            // Procura por objeto na tabela
             for(int i = 0; i < MAX_N_OBJECTS; i++){
                 if(strcmp(my_node.intTab.objPending[i].objectName, targetName) == 0){
                     obj = i;
@@ -183,6 +212,8 @@ void processINTEREST_received(int fd, char *targetName){
                 }
             }
 
+            // Encontra a interface na tabela de interesses que corresponde a q recebeu INTEREST
+            // e coloca em estado de resposta
             while(my_node.intTab.objPending[obj].socketInfo[interface].socket_id != fd){
                 interface++;
             }
@@ -190,6 +221,8 @@ void processINTEREST_received(int fd, char *targetName){
 
             interface = 0;
             flag = -1;
+            
+            // Procura por sockets que ainda estejam em estado de espera
             while(my_node.intTab.objPending[obj].socketInfo[interface].socket_id != -1 || interface == MAX_INTR_SIZE){
                 if(my_node.intTab.objPending[obj].socketInfo[interface].socketState == WAITING){
                     flag++;
@@ -200,20 +233,27 @@ void processINTEREST_received(int fd, char *targetName){
                 fprintf(stderr, "Limite máximo de vizinhos alcançado");
                 exit(EXIT_FAILURE);
             }
+            // Se nao encontrar interfaces que estejam em estado de espera envia NOOBJECT
             if(flag == -1 && fd != -1){
                 NOOBJECT_SEND_MESSAGE(fd, targetName);
             }
         }
     }
+    printf("--------------------------------------------\n");
     showInterestTable();
     return;
 }
 
 
 
-/***
+/******************************************************************
+ * retrieveObject()
  * 
- */
+ * Function that executes the procedure to retrieve an object
+ * 
+ * Inputs: 
+ * -> targetName - Object's name
+ ***********************************************************************/
 void retrieveObject(char *targetName){
     int flag = -1;
     int obj = my_node.intTab.n_objects_iwant;
@@ -256,14 +296,22 @@ void retrieveObject(char *targetName){
         INTEREST_SEND_MESSAGE(my_node.vz_extr.fd, targetName);
     }
     my_node.intTab.n_objects_iwant++;
+    printf("--------------------------------------------\n");
     showInterestTable();
 }
 
 
 
-/***
+/****************************************************************************************
+ * processOBJECT_received()
  * 
- */
+ * Processes what it needs to be done if an OBJECT message is received.
+ * Checks if Object is already in memory. 
+ * Deletes entry of the object
+ * 
+ * Inputs: 
+ * -> name - object's name
+ **************************************************************************************/
 void processOBJECT_received(char *name){
 
     int interface = 0;
@@ -309,9 +357,17 @@ void processOBJECT_received(char *name){
 
 
 
-/**
+/****************************************************************************
+ * processNOOBJECT_received()
  * 
- */
+ * Executes the procedure when we receive the NOOBJECT message.
+ * If all interfaces are closed or not even one is in waiting sate 
+ * sends NOOOBJECT message. 
+ * 
+ * Inputs: 
+ * -> fd - file descriptor from where it received
+ * -> name - object's name
+ **************************************************************************/
 void processNOOBJECT_received(int fd, char *name){
 
     int obj_position = -1;
@@ -367,9 +423,15 @@ void processNOOBJECT_received(int fd, char *name){
 
 
 
-/***
+/****************************************************************************************
+ * deleteEntry()
  * 
- */
+ * Deletes an entry from the Interest Table. 
+ * 
+ * Inputs: 
+ * -> obj_position - Position of the, to be deleted, object entry, in 
+ *                   the interest table pending objects vector
+ *****************************************************************************************/
 void deleteEntry(int obj_position){
     int n_objs = my_node.intTab.n_objects_iwant;
     int counter = obj_position;
@@ -380,11 +442,6 @@ void deleteEntry(int obj_position){
         flag = 0;
         // Copia o nome da entrada debaixo
         strcpy(my_node.intTab.objPending[counter].objectName, my_node.intTab.objPending[counter+1].objectName);
-        /*while(my_node.intTab.objPending[counter].socketInfo[flag+1].socket_id != -1){
-            my_node.intTab.objPending[counter].socketInfo[flag].socketState = my_node.intTab.objPending[counter].socketInfo[flag+1].socketState;
-            my_node.intTab.objPending[counter].socketInfo[flag].socket_id = my_node.intTab.objPending[counter].socketInfo[flag+1].socket_id;
-            flag++;
-        }*/
         // Copia as informacoes do socket da entrada debaixo para o de cima
         for(flag = 0; my_node.intTab.objPending[counter+1].socketInfo[flag].socket_id != -1; flag++){
             my_node.intTab.objPending[counter].socketInfo[flag].socket_id = my_node.intTab.objPending[counter+1].socketInfo[flag].socket_id;
@@ -410,9 +467,15 @@ void deleteEntry(int obj_position){
 
 
 
-/**
+/**************************************************************************************
+ * accessCache()
  * 
- */
+ * Function that checks if object is in cache but it exists to mainly
+ * manage the cache protocol - LRU. 
+ * 
+ * Inputs: 
+ * -> object - object's name
+ *************************************************************************************/
 void accessCache(const char *object) {
     int i, pos = -1;
 
@@ -463,9 +526,15 @@ void accessCache(const char *object) {
 
 
 
- /**
+ /************************************************************************
+ * INTEREST_SEND_MESSAGE()
  * 
- */
+ * Writes in socket the INTEREST message. 
+ * 
+ * Inputs: 
+ * -> fd - file descriptor where message is to be written
+ * -> name - object's name to be written in the message
+ ****************************************************************************/
 void INTEREST_SEND_MESSAGE(int fd, char *name){
     ssize_t n;
     int interface = 0;
@@ -479,6 +548,7 @@ void INTEREST_SEND_MESSAGE(int fd, char *name){
         fprintf(stderr, "Limite máximo de vizinhos alcançado");
         exit(EXIT_FAILURE);
     }
+    // The interface from where the message INTEREST is sent stays in WAITING state
     my_node.intTab.objPending[obj].socketInfo[interface].socket_id = fd;
     my_node.intTab.objPending[obj].socketInfo[interface].socketState = WAITING;
     
@@ -486,6 +556,7 @@ void INTEREST_SEND_MESSAGE(int fd, char *name){
     char buffer[64];
     memset(buffer, 0, sizeof(buffer));
 
+    // Checks if socket is valid
     if (fcntl(fd, F_GETFD) == -1) {
         perror("Socket is invalid");
     }
@@ -505,15 +576,22 @@ void INTEREST_SEND_MESSAGE(int fd, char *name){
 
 
 
-/**
+ /************************************************************************
+ * OBJECT_SEND_MESSAGE()
  * 
- */
+ * Writes in socket the OBJECT message. 
+ * 
+ * Inputs: 
+ * -> fd - file descriptor where message is to be written
+ * -> name - object's name to be written in the message
+ ****************************************************************************/
 void OBJECT_SEND_MESSAGE(int fd, char *name){
     ssize_t n;
 
     char buffer[64];
     memset(buffer, 0, sizeof(buffer));
 
+    // Checks if socket is valid
     if (fcntl(fd, F_GETFD) == -1) {
         perror("Socket is invalid");
     }
@@ -533,16 +611,23 @@ void OBJECT_SEND_MESSAGE(int fd, char *name){
 
 
 
-/**
+ /************************************************************************
+ * NOOBJECT_SEND_MESSAGE()
  * 
- */
+ * Writes in socket the NOOBJECT message. 
+ * 
+ * Inputs: 
+ * -> fd - file descriptor where message is to be written
+ * -> name - object's name to be written in the message
+ ****************************************************************************/
 void NOOBJECT_SEND_MESSAGE(int fd, char *name){
     ssize_t n;
 
     char buffer[64];
     memset(buffer, 0, sizeof(buffer));
 
-    if (fcntl(fd, F_GETFD) == -1) {
+    // Checks if socket is valid
+    if(fcntl(fd, F_GETFD) == -1) {
         perror("Socket is invalid");
     }
 
@@ -561,9 +646,11 @@ void NOOBJECT_SEND_MESSAGE(int fd, char *name){
 
 
 
-/**
+/**************************************************************
+ * showInterestTable()
  * 
- */
+ * Prints the Interest Table to stdout. 
+ ************************************************************/
 void showInterestTable(){
     char *closed = "fechado";
     char *waiting = "espera";
@@ -597,9 +684,12 @@ void showInterestTable(){
 
 
 
-/**
+/**************************************************************
+ * showNames()
  * 
- */
+ * Prints the Object's names inside of local node's 
+ * memory to stdout. 
+ ************************************************************/
 void showNames(){
     printf("------------------ Objects in node ------------------\n");
     for(int i = 0; i < my_node.n_inherentObjs; i++){
@@ -610,9 +700,12 @@ void showNames(){
 
 
 
-/**
+/**************************************************************
+ * showCache()
  * 
- */
+ * Prints the Object's names inside of node's 
+ * cache memory to stdout.  
+ ************************************************************/
 void showCache(){
     printf("------------------ Objects in cache ------------------\n");
     for(int i = 0; i < my_node.n_objs_inCache; i++){

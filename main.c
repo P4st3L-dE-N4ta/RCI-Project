@@ -10,6 +10,11 @@
  * Compile with: make
  * Run with: ./ndn <cache size> <ip> <tcp port>
  * 
+ * PROFESSORNOTE: O FD_ISSET diferentes para vz_extr e vz_intrs foram feitos assim para 
+ * facilitar codigo sequencial. Temos total nocao que o codigo podia estar mais eficiente e ter
+ * por exemplo uma estruturacao de um vetor de nos que nao sao externos e um q seja apenas
+ * do vz externo. 
+ * 
  *********************************************************************************************/
 
 #include "ndn.h"
@@ -120,7 +125,9 @@ int main (int argc, char *argv[]) {
     caso significara que vai monotorizar se algm quer se 
     connectar */
 
-    /* Comeco do ciclo infinito */
+
+
+ /* ---------------------------------- LOOP FOREVER -------------------------------------*/
     while(1) {
         FD_ZERO(&mask);
         FD_SET(0, &readfds); 
@@ -181,6 +188,13 @@ int main (int argc, char *argv[]) {
             printf("\n-------- TIMEOUT --------\n");
         }*/
 
+
+
+
+
+
+
+        /* ---------------------------------- STDIN READ -------------------------------------*/
         // Se tiver algo em stdin para ler
         if(FD_ISSET(0, &mask) != 0){
             memset(buffer, 0, sizeof(buffer));
@@ -300,6 +314,12 @@ int main (int argc, char *argv[]) {
         }
 
 
+
+
+
+
+
+        /* ---------------------------------- LISTEN SOCKET -------------------------------------*/
         // Se tiver alguem a tentar conectar-se 
         if(FD_ISSET(my_node.myself.fd, &mask)!=0){
             if(state == WAS_CLOSED){
@@ -358,6 +378,13 @@ int main (int argc, char *argv[]) {
 
         }
 
+
+
+
+
+
+
+        /* ---------------------------------- EXTERNAL READ -------------------------------------*/
         /* Se eu tiver feito dj e enviado uma entry este sera
         o socket que recebera a msg SAFE */
         if(my_node.vz_extr.fd != -1){
@@ -413,6 +440,12 @@ int main (int argc, char *argv[]) {
         
 
 
+
+
+
+
+
+        /* ---------------------------------- SONS READ -------------------------------------*/
         // Se receber alguma mensagem dos meus filhos
         int flag = 0;
         for(int i = 0; i < my_node.n_intr; i++){
@@ -470,6 +503,13 @@ int main (int argc, char *argv[]) {
             continue;
         }
 
+
+
+
+
+
+
+        /* ---------------------------------- UDP READ -------------------------------------*/
         // se receber algo do servidor
         if(my_node.fd_UDP != -1){
             if(FD_ISSET(my_node.fd_UDP, &mask)!=0){
@@ -576,6 +616,8 @@ int main (int argc, char *argv[]) {
             }
         }
     }
+
+
 
     fprintf(stderr, "------------ ERROR -----------\n");
     fprintf(stderr, "Not suppose to exit from here\n");
